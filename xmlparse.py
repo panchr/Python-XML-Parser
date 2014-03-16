@@ -5,11 +5,18 @@
 '''xmlparse.py provides classes and functions to easily parse XML source files (or text)'''
 
 import xml.etree.ElementTree as et
+import re
 
 ### Constants
 
 STRING = "string"
 FILE = "file"
+ATTRIBUTES = "attrib"
+TAG = "tag"
+TEXT = "text"
+TAIL = "tail"
+ALL = [ATTRIBUTES, TAG, TEXT, TAIL]
+INDENT_PATTERN = re.compile(">\\s+<")
 
 ### Main functions
 
@@ -21,7 +28,7 @@ def parse(data, type):
 	parse(raw_path)				--> XMLParser instance (interpreted as a file path)'''
 	return XMLParser.parse(data, type)
 
-def dictionary(data, type):
+def dictionary(data, type, **options):
 	'''Parses the data and returns a dictionary
 	
 	dictionary(
@@ -47,8 +54,11 @@ def dictionary(data, type):
 			'tail': None,
 			'tag': 'data',
 			'attrib': {}
-			}'''
-	return parse(data, type).get()
+			}
+			
+	Supported options:
+		contains (ALL) --- what to add per XML element (supports: TAG, TAIL, TEXT, ATTRIBUTES, ALL); use a list for more than one'''
+	return parse(data, type).get(**options)
 	
 ### Main classes
 
@@ -60,10 +70,10 @@ class XMLParser:
 		if type == STRING:
 			self.parsedXML = et.fromstring(data)
 		elif type == FILE:
-			self.parsedXML = et.parse(data)
+			with open(data, 'r') as xml_file:
+				self.parsedXML = et.fromstring(INDENT_PATTERN.sub("><", xml_file.read()))
 		else:
 			raise TypeError("type should be STRING or FILE")
-		self.xmlStructure = XMLStructure(self.parsedXML)
 	
 	@staticmethod
 	def parse(data, type):
@@ -72,17 +82,21 @@ class XMLParser:
 		This is the same as the global parse function'''
 		return XMLParser(data, type)
 		
-	def get(self):
+	def get(self, **options):
 		'''Returns a dictionary representation of the XML
 		
 		See the global dictionary function'''
-		return self.xmlStructure.dictionary
+		if hasattr(self, 'xmlStructure'):
+			return self.xmlStructure.dictionary
+		else:
+			self.xmlStructure = XMLStructure(self.parsedXML, **options)
+			return self.get()
 		
 class XMLStructure(object):
 	'''Recursively navigates an XML Element Tree and creates a dictionary representation
 	
 	This is automatically instantiated, so do not call it directly'''
-	def __init__(self, xml):
+	def __init__(self, xml, **options):
 		self.xml = xml
 		if isinstance(self.xml, et.Element):
 			self.root = self.xml
@@ -90,16 +104,17 @@ class XMLStructure(object):
 			self.root = self.xml.getroot()
 		else:
 			raise TypeError("xml must be an ElementTree or Element instance")
-		self.dictionary = self.parseDictionary(self.root)
+		attributesToAdd = options.get('contains', ALL)
+		self.dictionary = self.parseDictionary(self.root, *attributesToAdd)
 		
-	def parseDictionary(self, element):
+	def parseDictionary(self, element, *attributes):
 		'''Recursively creates the dictionary representation of the XML Element Tree
 		
 		Do not call directly --- used internally'''
-		items = XMLObject(tag = element.tag, text = element.text.replace("\t", "").replace("\n", ""), attrib = element.attrib, tail = element.tail)
+		items = XMLObject({attribute: getattr(element, attribute) for attribute in attributes})
 		if len(element):
 			for elem in element:
-				elem_items = self.parseDictionary(elem)
+				elem_items = self.parseDictionary(elem, *attributes)
 				if hasattr(items, elem.tag):
 					items[elem.tag] = [items[elem.tag], elem_items]
 				else:
