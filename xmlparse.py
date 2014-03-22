@@ -105,13 +105,15 @@ class XMLStructure(object):
 		else:
 			raise TypeError("xml must be an ElementTree or Element instance")
 		attributesToAdd = options.get('contains', ALL)
-		self.dictionary = self.parseDictionary(self.root, *attributesToAdd)
+		self.dictionary = self.parseDictionary(self.root, *attributesToAdd) if isinstance(attributesToAdd, list) else self.parseDictionary(self.root, attributesToAdd)
 		
 	def parseDictionary(self, element, *attributes):
 		'''Recursively creates the dictionary representation of the XML Element Tree
 		
 		Do not call directly --- used internally'''
 		items = Object({attribute: getattr(element, attribute) for attribute in attributes})
+		if hasattr(items, TEXT):
+			items[TEXT] = self.formatString(items[TEXT])
 		if len(element):
 			for elem in element:
 				elem_items = self.parseDictionary(elem, *attributes)
@@ -120,6 +122,16 @@ class XMLStructure(object):
 				else:
 					items[elem.tag] = elem_items
 		return items
+		
+	def formatString(self, string):
+		'''Formats a string by removing extra indentations'''
+		lines = string.split('\n')
+		new_lines = filter(lambda s: s.strip(), lines)
+		if new_lines:
+			smallest_line = min(new_lines, key = lambda s: (s.count('\t')))
+			to_remove = len(smallest_line) - len(smallest_line.lstrip())
+			return '\n'.join(line[to_remove:] for line in lines)
+		return '\n'
 		
 class Object(dict, object):
 	'''A dictionary-type object that also functions as a JSON object'''
