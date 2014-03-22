@@ -2,7 +2,7 @@
 # Rushy Panchal
 # Copyright 2014
 
-'''xmlparse.py provides classes and functions to easily parse XML source files (or text)'''
+'''xmlparse.py provides classes and functions to easily parse XML source files (or direct XML source)'''
 
 import xml.etree.ElementTree as et
 import re
@@ -70,8 +70,8 @@ class XMLParser:
 		if type == STRING:
 			self.parsedXML = et.fromstring(data)
 		elif type == FILE:
-			with open(data, 'r') as xml_file:
-				self.parsedXML = et.fromstring(INDENT_PATTERN.sub("><", xml_file.read()))
+			self.parsedXML = et.parse(data)
+			
 		else:
 			raise TypeError("type should be STRING or FILE")
 	
@@ -111,7 +111,7 @@ class XMLStructure(object):
 		'''Recursively creates the dictionary representation of the XML Element Tree
 		
 		Do not call directly --- used internally'''
-		items = XMLObject({attribute: getattr(element, attribute) for attribute in attributes})
+		items = Object({attribute: getattr(element, attribute) for attribute in attributes})
 		if len(element):
 			for elem in element:
 				elem_items = self.parseDictionary(elem, *attributes)
@@ -121,13 +121,13 @@ class XMLStructure(object):
 					items[elem.tag] = elem_items
 		return items
 		
-class XMLObject(dict, object):
+class Object(dict, object):
 	'''A dictionary-type object that also functions as a JSON object'''
 	def __getattribute__(self, key):
 		'''Gets an attribute from the dictionary
 		
 		Example:
-			x = XMLObject(a = "string", b = 2)
+			x = Object(a = "string", b = 2)
 			x["a"] --> "string"
 			x.a --> "string"
 			x.b += 3
