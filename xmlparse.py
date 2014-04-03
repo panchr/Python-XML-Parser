@@ -5,7 +5,6 @@
 '''xmlparse.py provides classes and functions to easily parse XML source files (or direct XML source)'''
 
 import xml.etree.ElementTree as et
-import re
 
 ### Constants
 
@@ -16,7 +15,6 @@ TAG = "tag"
 TEXT = "text"
 TAIL = "tail"
 ALL = [ATTRIBUTES, TAG, TEXT, TAIL]
-INDENT_PATTERN = re.compile(">\\s+<")
 
 ### Main functions
 
@@ -109,7 +107,7 @@ class XMLStructure(object):
 		
 	def parseDictionary(self, element, *attributes):
 		'''Recursively creates the dictionary representation of the XML Element Tree
-		
+
 		Do not call directly --- used internally'''
 		items = Object({attribute: getattr(element, attribute) for attribute in attributes})
 		if hasattr(items, TEXT):
@@ -130,7 +128,7 @@ class XMLStructure(object):
 		if new_lines:
 			smallest_line = min(new_lines, key = lambda s: (s.count('\t')))
 			to_remove = len(smallest_line) - len(smallest_line.lstrip())
-			return '\n'.join(line[to_remove:] for line in lines)
+			return '\n'.join(line[to_remove:] for line in lines).strip()
 		return '\n'
 		
 class Object(dict, object):
